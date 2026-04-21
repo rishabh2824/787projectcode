@@ -68,6 +68,15 @@ class UnmatchedInducedView:
         rng = random.Random(seed)
         return [rng.choice(self._unmatched_vertices) for _ in range(num_samples)]
 
+    def vertex_at(self, index: int) -> Node:
+        """
+        Return the index-th vertex in V \\ V(M).
+        """
+        if index < 0 or index >= len(self._unmatched_vertices):
+            raise IndexError("unmatched vertex index out of range")
+
+        return self._unmatched_vertices[index]
+
     def _induced_neighbors(self, v: Node) -> List[Node]:
         if v not in self._unmatched_set:
             return []

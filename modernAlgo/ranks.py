@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import random
-from typing import Dict, Hashable, Tuple
+from typing import Dict, Hashable, Protocol, Tuple
 
 Node = Hashable
 Edge = Tuple[Node, Node]
@@ -20,6 +21,21 @@ def canonical_edge(edge: Edge) -> Edge:
     """
     u, v = edge
     return (u, v) if u <= v else (v, u)
+
+
+class EdgeRanks(Protocol):
+    """
+    Protocol for edge-rank providers.
+    """
+
+    def rank(self, edge: Edge) -> float:
+        ...
+
+    def order_key(self, edge: Edge) -> tuple[float, Edge]:
+        ...
+
+    def is_before(self, edge1: Edge, edge2: Edge) -> bool:
+        ...
 
 
 class LazyEdgeRanks:
@@ -75,5 +91,51 @@ class LazyEdgeRanks:
     def clear(self) -> None:
         """
         Clear all cached ranks. Mostly useful for testing.
+        """
+        self._ranks.clear()
+
+
+class HashEdgeRanks:
+    """
+    Query-order independent random ranks for undirected edges.
+
+    The rank of an edge is derived from (seed, canonical_edge(edge)) using a
+    stable cryptographic hash. This gives each edge a deterministic pseudo-
+    random rank in [0, 1), independent of the order in which edges are queried.
+    """
+
+    def __init__(self, seed: int | str | None = None) -> None:
+        self.seed = "" if seed is None else str(seed)
+        self._ranks: Dict[Edge, float] = {}
+
+    def rank(self, edge: Edge) -> float:
+        """
+        Return the deterministic pseudo-random rank of an edge.
+        """
+        e = canonical_edge(edge)
+        if e not in self._ranks:
+            payload = repr((self.seed, e)).encode("utf-8")
+            digest = hashlib.blake2b(payload, digest_size=8).digest()
+            value = int.from_bytes(digest, byteorder="big", signed=False)
+            self._ranks[e] = value / 2**64
+
+        return self._ranks[e]
+
+    def order_key(self, edge: Edge) -> tuple[float, Edge]:
+        """
+        Return a total-order key for the edge.
+        """
+        e = canonical_edge(edge)
+        return (self.rank(e), e)
+
+    def is_before(self, edge1: Edge, edge2: Edge) -> bool:
+        """
+        Return True iff edge1 appears before edge2 in the induced order.
+        """
+        return self.order_key(edge1) < self.order_key(edge2)
+
+    def clear(self) -> None:
+        """
+        Clear cached rank values.
         """
         self._ranks.clear()

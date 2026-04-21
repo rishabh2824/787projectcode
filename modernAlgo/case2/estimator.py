@@ -3,8 +3,7 @@ from __future__ import annotations
 import math
 from typing import Hashable, Iterable, Sequence, Tuple, Dict, Any
 
-from modernAlgo.ranks import LazyEdgeRanks
-from modernAlgo.random_neighbor_rgmm_oracle import RandomNeighborRGMMOracle
+from modernAlgo.behnezhad_rgmm_oracle import BehnezhadRGMMOracle
 from modernAlgo.case2.copied_graph import Case2CopiedView
 from modernAlgo.case1.estimator import (
     apply_additive_slack,
@@ -71,10 +70,8 @@ def estimate_b2_size_from_oracle(
 
     num_samples = paper_sample_count(n_total)
 
-    ranks = LazyEdgeRanks(seed=seed)
-    oracle = RandomNeighborRGMMOracle(
+    oracle = BehnezhadRGMMOracle(
         view,
-        ranks,
         seed=None if seed is None else seed + 10_000_003,
     )
 

@@ -179,6 +179,12 @@ class Case1CopiedView:
 
         return 0 <= copy_index < self._copy_count(side, node)
 
+    def vertex_at(self, index: int) -> CopiedNode:
+        """
+        Return the index-th copied vertex without materializing all vertices.
+        """
+        return self._copied_vertex_at(index)
+
     def sample_vertices(self, num_samples: int, seed: int | None = None) -> List[CopiedNode]:
         """
         Sample copied vertices uniformly with replacement without materializing all vertices.

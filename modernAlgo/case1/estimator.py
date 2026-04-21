@@ -3,8 +3,7 @@ from __future__ import annotations
 import math
 from typing import Hashable, Iterable, Sequence, Tuple, Dict, Any
 
-from modernAlgo.ranks import LazyEdgeRanks
-from modernAlgo.random_neighbor_rgmm_oracle import RandomNeighborRGMMOracle
+from modernAlgo.behnezhad_rgmm_oracle import BehnezhadRGMMOracle
 from modernAlgo.case1.view_copied import Case1CopiedView
 from modernAlgo.case1.view_unmatched import UnmatchedInducedView
 
@@ -76,10 +75,8 @@ def estimate_mprime_size_from_inner_oracle(
 
     num_samples = paper_sample_count(n_total)
 
-    ranks = LazyEdgeRanks(seed=seed)
-    inner_oracle = RandomNeighborRGMMOracle(
+    inner_oracle = BehnezhadRGMMOracle(
         view,
-        ranks,
         seed=None if seed is None else seed + 5_000_003,
     )
 
@@ -113,7 +110,7 @@ def estimate_b1_size_from_outer_oracle(
     right_nodes: Sequence[Node],
     edges: Iterable[Edge],
     M: Iterable[Edge],
-    inner_oracle: RandomNeighborRGMMOracle,
+    inner_oracle: BehnezhadRGMMOracle,
     k: int,
     seed: int | None = None,
 ) -> Dict[str, Any]:
@@ -161,11 +158,9 @@ def estimate_b1_size_from_outer_oracle(
 
     num_samples = paper_sample_count(n_total)
 
-    # Important: outer oracle needs its own independent random ordering
-    outer_ranks = LazyEdgeRanks(seed=None if seed is None else seed + 10_000_003)
-    outer_oracle = RandomNeighborRGMMOracle(
+    # Important: outer oracle needs its own independent random ordering.
+    outer_oracle = BehnezhadRGMMOracle(
         copied_view,
-        outer_ranks,
         seed=None if seed is None else seed + 30_000_003,
     )
 

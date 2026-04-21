@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict, Hashable, Iterable, List, Optional, Protocol, Set, Tuple
 
-from modernAlgo.ranks import LazyEdgeRanks, canonical_edge
+from modernAlgo.ranks import EdgeRanks, canonical_edge
 
 Node = Hashable
 Edge = Tuple[Node, Node]
@@ -68,7 +68,7 @@ class RGMMOracle:
     explicitly materializing them. But this oracle logic remains the same.
     """
 
-    def __init__(self, graph_view: GraphView, ranks: LazyEdgeRanks) -> None:
+    def __init__(self, graph_view: GraphView, ranks: EdgeRanks) -> None:
         self.graph = graph_view
         self.ranks = ranks
 
