@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 from typing import Hashable, Iterable, Sequence, Tuple, Dict, Any
-
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from modernAlgo.ranks import LazyEdgeRanks
 from modernAlgo.random_neighbor_rgmm_oracle import RandomNeighborRGMMOracle
@@ -178,37 +173,3 @@ def run_case2_oracle(
         "oracle": est["oracle"],
         "view": est["view"],
     }
-
-
-if __name__ == "__main__":
-    U = [0, 1, 2, 3]
-    V = [10, 11, 12, 13]
-    E = [
-        (0, 10),
-        (0, 11),
-        (1, 10),
-        (1, 12),
-        (2, 11),
-        (2, 13),
-        (3, 12),
-    ]
-
-    M = [(0, 10), (1, 12), (2, 11)]
-
-    result = run_case2_oracle(U, V, E, M, k=2, seed=42)
-
-    print("Case 2 oracle result")
-    print("--------------------")
-    print("B2_estimate       =", result["B2_estimate"])
-    print("mu2               =", result["mu2"])
-    print("matched_fraction  =", result["matched_fraction"])
-    print("num_samples       =", result["num_samples"])
-    print("copied_num_vertices =", result["copied_num_vertices"])
-    print("copied_num_edges    =", result["copied_num_edges"])
-
-    oracle = result["oracle"]
-    if oracle is not None:
-        print("edge_queries      =", oracle.edge_queries)
-        print("edge_cache_hits   =", oracle.edge_cache_hits)
-        print("vertex_queries    =", oracle.vertex_queries)
-        print("vertex_cache_hits =", oracle.vertex_cache_hits)

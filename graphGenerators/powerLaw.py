@@ -77,18 +77,3 @@ def expected_er_edges(n_left: int, n_right: int, p: float) -> int:
     """
     return int(round(n_left * n_right * p))
 
-
-if __name__ == "__main__":
-    U, V, edges = generate_powerlaw_bipartite_graph(
-        n_left=100,
-        n_right=100,
-        m=500,
-        alpha_left=2.5,
-        alpha_right=2.5,
-        seed=42,
-    )
-
-    print("Left vertices:", len(U))
-    print("Right vertices:", len(V))
-    print("Edges:", len(edges))
-    print("First 20 edges:", edges[:20])

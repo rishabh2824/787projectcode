@@ -58,16 +58,3 @@ def generate_er_bipartite_graph(
 
     return U, V, edges
 
-
-if __name__ == "__main__":
-    U, V, edges = generate_er_bipartite_graph(
-        n_left=100,
-        n_right=99,
-        p=0.3,
-        seed=42,
-    )
-
-    print("U:", U)
-    print("V:", V)
-    print("Edges:", edges)
-    print("Number of edges:", len(edges))

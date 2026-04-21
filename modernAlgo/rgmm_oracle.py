@@ -14,9 +14,6 @@ class GraphView(Protocol):
 
     Any graph view plugged into the oracle must implement:
 
-    - vertices():
-        iterable of all vertices in the view
-
     - incident_edges(v):
         iterable of all undirected edges incident to v in the view
 
@@ -38,9 +35,6 @@ class GraphView(Protocol):
     - a copied graph for b-matching
     - any other derived graph
     """
-
-    def vertices(self) -> Iterable[Node]:
-        ...
 
     def incident_edges(self, v: Node) -> Iterable[Edge]:
         ...

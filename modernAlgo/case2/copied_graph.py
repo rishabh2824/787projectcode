@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import math
 import random
-import sys
 from collections import defaultdict
-from pathlib import Path
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
-
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from modernAlgo.ranks import canonical_edge
 
@@ -142,12 +137,6 @@ class Case2CopiedView:
 
         return 0 <= copy_index < self._copy_count(side, node)
 
-    def vertices(self) -> List[CopiedNode]:
-        """
-        Return all copied vertices in G2'.
-        """
-        return [self._copied_vertex_at(i) for i in range(self._num_vertices)]
-
     def sample_vertices(self, num_samples: int, seed: int | None = None) -> List[CopiedNode]:
         """
         Sample copied vertices uniformly with replacement without materializing all vertices.
@@ -280,28 +269,3 @@ class Case2CopiedView:
 
     def num_edges(self) -> int:
         return self._num_edges
-
-
-if __name__ == "__main__":
-    U = [0, 1, 2, 3]
-    V = [10, 11, 12, 13]
-    E = [
-        (0, 10),
-        (0, 11),
-        (1, 10),
-        (1, 12),
-        (2, 11),
-        (2, 13),
-        (3, 12),
-    ]
-
-    M = [(0, 10), (1, 12), (2, 11)]
-
-    view = Case2CopiedView(U, V, E, M, k=2)
-
-    print("Number of copied vertices:", view.num_vertices())
-    print("Number of copied edges:", view.num_edges())
-
-    sample_vertices = view.vertices()[:10]
-    for v in sample_vertices:
-        print(f"{v} -> {len(view.incident_edges(v))} incident copied edges")

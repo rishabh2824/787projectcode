@@ -35,16 +35,3 @@ def maximum_matching_size_networkx(
     # NetworkX returns both directions in the dict, so divide by 2.
     return len(matching) // 2
 
-
-if __name__ == "__main__":
-    U = [0, 1]
-    V = [10, 11]
-
-    edges = [
-        (0, 10),
-        (0, 11),
-        (1, 10)
-    ]
-
-    matching_size = maximum_matching_size_networkx(U, V, edges)
-    print(f"Maximum matching size: {matching_size}")

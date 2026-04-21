@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-import sys
 from collections import defaultdict
-from pathlib import Path
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
-
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from modernAlgo.ranks import canonical_edge
 
@@ -89,28 +84,3 @@ class UnmatchedInducedView:
 
     def num_edges(self) -> int:
         return len(self._edges)
-
-
-if __name__ == "__main__":
-    # Tiny test
-    U = [0, 1, 2, 3]
-    V = [10, 11, 12, 13]
-    E = [
-        (0, 10),
-        (0, 11),
-        (1, 10),
-        (1, 12),
-        (2, 11),
-        (2, 13),
-        (3, 12),
-    ]
-
-    M = [(0, 10), (1, 12), (2, 11)]
-
-    view = UnmatchedInducedView(U, V, E, M)
-
-    print("Vertices in G[V \\ V(M)]:", view.vertices())
-    print("Number of edges in G[V \\ V(M)]:", view.num_edges())
-
-    for v in view.vertices():
-        print(f"incident_edges({v}) =", view.incident_edges(v))

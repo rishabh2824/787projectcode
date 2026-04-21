@@ -2,12 +2,7 @@ from __future__ import annotations
 
 import math
 import random
-import sys
-from pathlib import Path
 from typing import Hashable, Iterable, List, Sequence, Tuple, Dict, Any
-
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from modernAlgo.ranks import LazyEdgeRanks
 from modernAlgo.random_neighbor_rgmm_oracle import RandomNeighborRGMMOracle
@@ -313,52 +308,3 @@ def run_case1_oracle(
         "unmatched_view": est_mprime["unmatched_view"],
         "copied_view": est_b1["copied_view"],
     }
-
-
-if __name__ == "__main__":
-    U = [0, 1, 2, 3]
-    V = [10, 11, 12, 13]
-    E = [
-        (0, 10),
-        (0, 11),
-        (1, 10),
-        (1, 12),
-        (2, 11),
-        (2, 13),
-        (3, 12),
-    ]
-
-    M = [(0, 10), (1, 12)]
-
-    result = run_case1_oracle(U, V, E, M, k=2, seed=42)
-
-    print("Case 1 oracle result")
-    print("--------------------")
-    print("Mprime_estimate      =", result["Mprime_estimate"])
-    print("B1_estimate          =", result["B1_estimate"])
-    print("mu1                  =", result["mu1"])
-    print("inner_matched_fraction =", result["inner_matched_fraction"])
-    print("outer_matched_fraction =", result["outer_matched_fraction"])
-    print("inner_num_samples    =", result["inner_num_samples"])
-    print("outer_num_samples    =", result["outer_num_samples"])
-    print("unmatched_num_vertices =", result["unmatched_num_vertices"])
-    print("unmatched_num_edges    =", result["unmatched_num_edges"])
-    print("copied_num_vertices    =", result["copied_num_vertices"])
-    print("copied_num_edges       =", result["copied_num_edges"])
-
-    inner_oracle = result["inner_oracle"]
-    outer_oracle = result["outer_oracle"]
-
-    if inner_oracle is not None:
-        print("\nInner oracle instrumentation:")
-        print("edge_queries      =", inner_oracle.edge_queries)
-        print("edge_cache_hits   =", inner_oracle.edge_cache_hits)
-        print("vertex_queries    =", inner_oracle.vertex_queries)
-        print("vertex_cache_hits =", inner_oracle.vertex_cache_hits)
-
-    if outer_oracle is not None:
-        print("\nOuter oracle instrumentation:")
-        print("edge_queries      =", outer_oracle.edge_queries)
-        print("edge_cache_hits   =", outer_oracle.edge_cache_hits)
-        print("vertex_queries    =", outer_oracle.vertex_queries)
-        print("vertex_cache_hits =", outer_oracle.vertex_cache_hits)

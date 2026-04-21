@@ -2,13 +2,8 @@ from __future__ import annotations
 
 import math
 import random
-import sys
 from collections import defaultdict
-from pathlib import Path
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
-
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from modernAlgo.ranks import canonical_edge
 
@@ -184,12 +179,6 @@ class Case1CopiedView:
 
         return 0 <= copy_index < self._copy_count(side, node)
 
-    def vertices(self) -> List[CopiedNode]:
-        """
-        Return all copied vertices in G1'.
-        """
-        return [self._copied_vertex_at(i) for i in range(self._num_vertices)]
-
     def sample_vertices(self, num_samples: int, seed: int | None = None) -> List[CopiedNode]:
         """
         Sample copied vertices uniformly with replacement without materializing all vertices.
@@ -322,47 +311,3 @@ class Case1CopiedView:
 
     def num_edges(self) -> int:
         return self._num_edges
-
-
-if __name__ == "__main__":
-    # Tiny sanity test using a fake inner oracle.
-    class FakeInnerOracle:
-        def __init__(self, matched_vertices_set):
-            self._matched = set(matched_vertices_set)
-
-        def vertex_matched(self, v):
-            return v in self._matched
-
-    U = [0, 1, 2, 3]
-    V = [10, 11, 12, 13]
-    E = [
-        (0, 10),
-        (0, 11),
-        (1, 10),
-        (1, 12),
-        (2, 11),
-        (2, 13),
-        (3, 12),
-    ]
-
-    # Explicit M from sparsification
-    M = [(0, 10), (1, 12)]
-
-    # Suppose inner oracle says M' matches 2 and 11
-    fake_oracle = FakeInnerOracle({2, 11})
-
-    view = Case1CopiedView(
-        left_nodes=U,
-        right_nodes=V,
-        edges=E,
-        M=M,
-        inner_mprime_oracle=fake_oracle,
-        k=2,
-    )
-
-    print("A_left  =", view.A_left)
-    print("A_right =", view.A_right)
-    print("B_left  =", view.B_left)
-    print("B_right =", view.B_right)
-    print("num copied vertices =", view.num_vertices())
-    print("num copied edges    =", view.num_edges())

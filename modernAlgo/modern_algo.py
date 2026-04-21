@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 import math
-import sys
-from pathlib import Path
 from typing import Any, Dict, Hashable, Iterable, Sequence, Tuple
-
-if __package__ in {None, ""}:
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from modernAlgo.case1.estimator import run_case1_oracle
 from modernAlgo.case2.estimator import run_case2_oracle
@@ -143,39 +138,3 @@ def run_modern_oracle(
         "case1": case1_result,
         "case2": case2_result,
     }
-
-
-if __name__ == "__main__":
-    U = [0, 1, 2, 3]
-    V = [10, 11, 12, 13]
-    E = [
-        (0, 10),
-        (0, 11),
-        (1, 10),
-        (1, 12),
-        (2, 11),
-        (2, 13),
-        (3, 12),
-    ]
-
-    result = run_modern_oracle(U, V, E, k=2, seed=42)
-
-    print("Modern oracle result")
-    print("--------------------")
-    print("|M| =", result["M_size"])
-    print("mu1 =", result["mu1"])
-    print("mu2 =", result["mu2"])
-    print("final estimate =", result["estimate"])
-
-    print("\nCase 1 details:")
-    print("Mprime_estimate       =", result["case1"]["Mprime_estimate"])
-    print("B1_estimate           =", result["case1"]["B1_estimate"])
-    print("unmatched_num_vertices =", result["case1"]["unmatched_num_vertices"])
-    print("unmatched_num_edges    =", result["case1"]["unmatched_num_edges"])
-    print("copied_num_vertices    =", result["case1"]["copied_num_vertices"])
-    print("copied_num_edges       =", result["case1"]["copied_num_edges"])
-
-    print("\nCase 2 details:")
-    print("B2_estimate         =", result["case2"]["B2_estimate"])
-    print("copied_num_vertices =", result["case2"]["copied_num_vertices"])
-    print("copied_num_edges    =", result["case2"]["copied_num_edges"])

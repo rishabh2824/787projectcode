@@ -68,17 +68,3 @@ def generate_near_regular_bipartite_graph(
 
     return U, V, edges
 
-
-if __name__ == "__main__":
-    U, V, edges = generate_near_regular_bipartite_graph(
-        n_left=100,
-        n_right=100,
-        target_degree=None,   # defaults to ceil(sqrt(100)) = 10
-        seed=42,
-    )
-
-    print("Left vertices:", len(U))
-    print("Right vertices:", len(V))
-    print("Edges:", len(edges))
-    print("Expected left degree:", math.ceil(math.sqrt(100)))
-    print("Average degree on left:", len(edges) / len(U))
