@@ -4,6 +4,8 @@ import random
 from collections import defaultdict
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
 
+from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
+
 Node = Hashable
 Edge = Tuple[Node, Node]
 
@@ -51,6 +53,14 @@ def sparsify_partial_matching(
     edges: Iterable[Edge],
     seed: int | None = None,
 ) -> List[Edge]:
+    graph = EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
+    return sparsify_partial_matching_from_graph(graph, seed=seed)
+
+
+def sparsify_partial_matching_from_graph(
+    graph: BipartiteGraphOracle,
+    seed: int | None = None,
+) -> List[Edge]:
     """
     Paper-inspired sparsification step (Algorithm 2).
 
@@ -64,12 +74,8 @@ def sparsify_partial_matching(
 
     Parameters
     ----------
-    left_nodes : Sequence[Node]
-        Left partition U
-    right_nodes : Sequence[Node]
-        Right partition V
-    edges : Iterable[Edge]
-        Bipartite edge list (u, v), u in U, v in V
+    graph : BipartiteGraphOracle
+        Bipartite graph accessed through adjacency-list queries.
     seed : int | None
         Random seed for reproducibility
 
@@ -80,15 +86,11 @@ def sparsify_partial_matching(
     """
     rng = random.Random(seed)
 
-    U = list(left_nodes)
-    V = list(right_nodes)
-    all_vertices: List[Node] = U + V
+    all_vertices: List[Node] = list(graph.vertices())
     n = len(all_vertices)
 
     if n <= 1:
         return []
-
-    adjacency = build_adjacency_from_edges(U, V, edges)
 
     c = default_sparsify_sample_count(n)
 
@@ -99,16 +101,16 @@ def sparsify_partial_matching(
         if v in matched:
             continue
 
-        neighbors = adjacency[v]
-        if not neighbors:
+        degree = graph.degree(v)
+        if degree == 0:
             continue
 
         for _ in range(c):
-            u = rng.choice(neighbors)
+            u = graph.neighbor_at(v, rng.randrange(degree))
 
             if u not in matched and v not in matched:
                 # Store edges in canonical bipartite direction: (left, right)
-                if v in U:
+                if graph.side(v) == "L":
                     matching.append((v, u))
                 else:
                     matching.append((u, v))

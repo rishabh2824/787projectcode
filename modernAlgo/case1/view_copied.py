@@ -5,6 +5,7 @@ import random
 from collections import defaultdict
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
 
+from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
 from modernAlgo.ranks import canonical_edge
 
 Node = Hashable
@@ -55,13 +56,14 @@ class Case1CopiedView:
 
     def __init__(
         self,
-        left_nodes: Sequence[Node],
-        right_nodes: Sequence[Node],
-        edges: Iterable[OriginalEdge],
-        M: Iterable[OriginalEdge],
-        inner_mprime_oracle,
-        k: int,
+        left_nodes: Sequence[Node] | None = None,
+        right_nodes: Sequence[Node] | None = None,
+        edges: Iterable[OriginalEdge] | None = None,
+        M: Iterable[OriginalEdge] = (),
+        inner_mprime_oracle=None,
+        k: int = 10,
         b: float | None = None,
+        graph: BipartiteGraphOracle | None = None,
     ) -> None:
         if k <= 0:
             raise ValueError("k must be positive")
@@ -69,9 +71,19 @@ class Case1CopiedView:
         if b is None:
             b = 1.0 + math.sqrt(2.0)
 
-        self.left_nodes = list(left_nodes)
-        self.right_nodes = list(right_nodes)
-        self.original_edges = [canonical_edge(e) for e in edges]
+        if graph is None:
+            if left_nodes is None or right_nodes is None or edges is None:
+                raise ValueError("provide either graph or left_nodes/right_nodes/edges")
+            graph = EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
+
+        self.graph = graph
+        self.left_nodes = (
+            list(graph.left_vertices()) if left_nodes is None else list(left_nodes)
+        )
+        self.right_nodes = (
+            list(graph.right_vertices()) if right_nodes is None else list(right_nodes)
+        )
+        self.original_edges = list(self._iter_left_edges())
 
         self.k = k
         self.b = b
@@ -147,6 +159,12 @@ class Case1CopiedView:
             self._copy_counts[("L", u)] * self._copy_counts[("R", v)]
             for u, v in self.g1_edges
         )
+
+    def _iter_left_edges(self) -> Iterable[OriginalEdge]:
+        for u in self.left_nodes:
+            for index in range(self.graph.degree(u)):
+                v = self.graph.neighbor_at(u, index)
+                yield (u, v)
 
     def _copied_vertex_at(self, index: int) -> CopiedNode:
         if index < 0 or index >= self._num_vertices:

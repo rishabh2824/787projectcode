@@ -6,22 +6,25 @@ from typing import Hashable, Iterable, Sequence, Tuple, Dict, Any
 from modernAlgo.behnezhad_rgmm_oracle import BehnezhadRGMMOracle
 from modernAlgo.case2.copied_graph import Case2CopiedView
 from modernAlgo.case1.estimator import (
+    _as_graph,
     apply_additive_slack,
     paper_additive_slack,
     paper_sample_count,
 )
+from modernAlgo.graph_oracle import BipartiteGraphOracle
 
 Node = Hashable
 Edge = Tuple[Node, Node]
 
 
 def estimate_b2_size_from_oracle(
-    left_nodes: Sequence[Node],
-    right_nodes: Sequence[Node],
-    edges: Iterable[Edge],
-    M: Iterable[Edge],
-    k: int,
+    left_nodes: Sequence[Node] | None = None,
+    right_nodes: Sequence[Node] | None = None,
+    edges: Iterable[Edge] | None = None,
+    M: Iterable[Edge] = (),
+    k: int = 10,
     seed: int | None = None,
+    graph: BipartiteGraphOracle | None = None,
 ) -> Dict[str, Any]:
     """
     Estimate |B2| using the RGMM oracle on the copied Case 2 graph G2'.
@@ -42,19 +45,18 @@ def estimate_b2_size_from_oracle(
     if k <= 0:
         raise ValueError("k must be positive")
 
+    graph = _as_graph(left_nodes, right_nodes, edges, graph)
     b = 1.0 + math.sqrt(2.0)
 
     view = Case2CopiedView(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edges,
         M=M,
         k=k,
         b=b,
+        graph=graph,
     )
 
     copied_num_vertices = view.num_vertices()
-    n_total = len(left_nodes) + len(right_nodes)
+    n_total = graph.num_vertices()
 
     if copied_num_vertices == 0:
         return {
@@ -124,12 +126,13 @@ def compute_mu2_from_b2_estimate(
 
 
 def run_case2_oracle(
-    left_nodes: Sequence[Node],
-    right_nodes: Sequence[Node],
-    edges: Iterable[Edge],
-    M: Iterable[Edge],
+    left_nodes: Sequence[Node] | None = None,
+    right_nodes: Sequence[Node] | None = None,
+    edges: Iterable[Edge] | None = None,
+    M: Iterable[Edge] = (),
     k: int = 10,
     seed: int | None = None,
+    graph: BipartiteGraphOracle | None = None,
 ) -> Dict[str, Any]:
     """
     Full oracle-based Case 2 pipeline.
@@ -144,13 +147,12 @@ def run_case2_oracle(
     - oracle
     - view
     """
+    graph = _as_graph(left_nodes, right_nodes, edges, graph)
     est = estimate_b2_size_from_oracle(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edges,
         M=M,
         k=k,
         seed=seed,
+        graph=graph,
     )
 
     mu2 = compute_mu2_from_b2_estimate(

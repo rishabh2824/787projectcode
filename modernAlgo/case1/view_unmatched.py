@@ -3,8 +3,8 @@ from __future__ import annotations
 import random
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
 
+from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
 from modernAlgo.ranks import canonical_edge
-from modernAlgo.sparsify import build_adjacency_from_edges
 
 Node = Hashable
 Edge = Tuple[Node, Node]
@@ -33,25 +33,30 @@ class UnmatchedInducedView:
 
     def __init__(
         self,
-        left_nodes: Sequence[Node],
-        right_nodes: Sequence[Node],
-        edges: Iterable[Edge],
-        M: Iterable[Edge],
+        left_nodes: Sequence[Node] | None = None,
+        right_nodes: Sequence[Node] | None = None,
+        edges: Iterable[Edge] | None = None,
+        M: Iterable[Edge] = (),
+        graph: BipartiteGraphOracle | None = None,
     ) -> None:
-        self.left_nodes = list(left_nodes)
-        self.right_nodes = list(right_nodes)
-        self.original_edges = [canonical_edge(e) for e in edges]
+        if graph is None:
+            if left_nodes is None or right_nodes is None or edges is None:
+                raise ValueError("provide either graph or left_nodes/right_nodes/edges")
+            graph = EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
+
+        self.graph = graph
+        self.left_nodes = (
+            list(graph.left_vertices()) if left_nodes is None else list(left_nodes)
+        )
+        self.right_nodes = (
+            list(graph.right_vertices()) if right_nodes is None else list(right_nodes)
+        )
 
         self._matched = matched_vertices(M)
         self._unmatched_vertices: List[Node] = [
             v for v in (self.left_nodes + self.right_nodes) if v not in self._matched
         ]
         self._unmatched_set: Set[Node] = set(self._unmatched_vertices)
-        self._original_adj = build_adjacency_from_edges(
-            self.left_nodes,
-            self.right_nodes,
-            self.original_edges,
-        )
         self._induced_neighbors_cache: Dict[Node, List[Node]] = {}
         self._num_edges: int | None = None
 
@@ -82,9 +87,11 @@ class UnmatchedInducedView:
             return []
 
         if v not in self._induced_neighbors_cache:
-            self._induced_neighbors_cache[v] = [
-                u for u in self._original_adj.get(v, []) if u in self._unmatched_set
-            ]
+            self._induced_neighbors_cache[v] = []
+            for index in range(self.graph.degree(v)):
+                u = self.graph.neighbor_at(v, index)
+                if u in self._unmatched_set:
+                    self._induced_neighbors_cache[v].append(u)
 
         return self._induced_neighbors_cache[v]
 
@@ -121,8 +128,8 @@ class UnmatchedInducedView:
         if v not in self._unmatched_set:
             return None
 
-        original_neighbors = self._original_adj.get(v, [])
-        if not original_neighbors:
+        original_degree = self.graph.degree(v)
+        if original_degree == 0:
             return None
 
         if rng is None:
@@ -133,7 +140,7 @@ class UnmatchedInducedView:
             return None
 
         while True:
-            candidate = rng.choice(original_neighbors)
+            candidate = self.graph.neighbor_at(v, rng.randrange(original_degree))
             if candidate in self._unmatched_set:
                 return candidate
 

@@ -6,9 +6,24 @@ from typing import Hashable, Iterable, Sequence, Tuple, Dict, Any
 from modernAlgo.behnezhad_rgmm_oracle import BehnezhadRGMMOracle
 from modernAlgo.case1.view_copied import Case1CopiedView
 from modernAlgo.case1.view_unmatched import UnmatchedInducedView
+from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
 
 Node = Hashable
 Edge = Tuple[Node, Node]
+
+
+def _as_graph(
+    left_nodes: Sequence[Node] | None,
+    right_nodes: Sequence[Node] | None,
+    edges: Iterable[Edge] | None,
+    graph: BipartiteGraphOracle | None,
+) -> BipartiteGraphOracle:
+    if graph is not None:
+        return graph
+    if left_nodes is None or right_nodes is None or edges is None:
+        raise ValueError("provide either graph or left_nodes/right_nodes/edges")
+
+    return EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
 
 
 def paper_additive_slack(num_original_vertices: int) -> float:
@@ -33,11 +48,12 @@ def apply_additive_slack(estimate: float, num_original_vertices: int) -> float:
 
 
 def estimate_mprime_size_from_inner_oracle(
-    left_nodes: Sequence[Node],
-    right_nodes: Sequence[Node],
-    edges: Iterable[Edge],
-    M: Iterable[Edge],
+    left_nodes: Sequence[Node] | None = None,
+    right_nodes: Sequence[Node] | None = None,
+    edges: Iterable[Edge] | None = None,
+    M: Iterable[Edge] = (),
     seed: int | None = None,
+    graph: BipartiteGraphOracle | None = None,
 ) -> Dict[str, Any]:
     """
     Estimate |M'| using the inner RGMM oracle on G[V \\ V(M)].
@@ -51,15 +67,14 @@ def estimate_mprime_size_from_inner_oracle(
     - inner_oracle
     - unmatched_view
     """
+    graph = _as_graph(left_nodes, right_nodes, edges, graph)
     view = UnmatchedInducedView(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edges,
         M=M,
+        graph=graph,
     )
 
     unmatched_num_vertices = view.num_vertices()
-    n_total = len(left_nodes) + len(right_nodes)
+    n_total = graph.num_vertices()
 
     if unmatched_num_vertices == 0:
         return {
@@ -106,13 +121,14 @@ def estimate_mprime_size_from_inner_oracle(
 
 
 def estimate_b1_size_from_outer_oracle(
-    left_nodes: Sequence[Node],
-    right_nodes: Sequence[Node],
-    edges: Iterable[Edge],
-    M: Iterable[Edge],
-    inner_oracle: BehnezhadRGMMOracle,
-    k: int,
+    left_nodes: Sequence[Node] | None = None,
+    right_nodes: Sequence[Node] | None = None,
+    edges: Iterable[Edge] | None = None,
+    M: Iterable[Edge] = (),
+    inner_oracle: BehnezhadRGMMOracle | None = None,
+    k: int = 10,
     seed: int | None = None,
+    graph: BipartiteGraphOracle | None = None,
 ) -> Dict[str, Any]:
     """
     Estimate |B1| using the outer RGMM oracle on the copied Case 1 graph G1'.
@@ -129,20 +145,19 @@ def estimate_b1_size_from_outer_oracle(
     if k <= 0:
         raise ValueError("k must be positive")
 
+    graph = _as_graph(left_nodes, right_nodes, edges, graph)
     b = 1.0 + math.sqrt(2.0)
 
     copied_view = Case1CopiedView(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edges,
         M=M,
         inner_mprime_oracle=inner_oracle,
         k=k,
         b=b,
+        graph=graph,
     )
 
     copied_num_vertices = copied_view.num_vertices()
-    n_total = len(left_nodes) + len(right_nodes)
+    n_total = graph.num_vertices()
 
     if copied_num_vertices == 0:
         return {
@@ -208,12 +223,13 @@ def compute_mu1_from_estimates(
 
 
 def run_case1_oracle(
-    left_nodes: Sequence[Node],
-    right_nodes: Sequence[Node],
-    edges: Iterable[Edge],
-    M: Iterable[Edge],
+    left_nodes: Sequence[Node] | None = None,
+    right_nodes: Sequence[Node] | None = None,
+    edges: Iterable[Edge] | None = None,
+    M: Iterable[Edge] = (),
     k: int = 10,
     seed: int | None = None,
+    graph: BipartiteGraphOracle | None = None,
 ) -> Dict[str, Any]:
     """
     Full oracle-based Case 1 pipeline.
@@ -242,24 +258,21 @@ def run_case1_oracle(
     - unmatched_view
     - copied_view
     """
+    graph = _as_graph(left_nodes, right_nodes, edges, graph)
     est_mprime = estimate_mprime_size_from_inner_oracle(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edges,
         M=M,
         seed=seed,
+        graph=graph,
     )
 
     inner_oracle = est_mprime["inner_oracle"]
 
     est_b1 = estimate_b1_size_from_outer_oracle(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edges,
         M=M,
         inner_oracle=inner_oracle,
         k=k,
         seed=seed,
+        graph=graph,
     )
 
     mu1 = compute_mu1_from_estimates(

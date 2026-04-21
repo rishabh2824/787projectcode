@@ -5,7 +5,11 @@ from typing import Any, Dict, Hashable, Iterable, Sequence, Tuple
 
 from modernAlgo.case1.estimator import run_case1_oracle
 from modernAlgo.case2.estimator import run_case2_oracle
-from modernAlgo.sparsify import default_sparsify_sample_count, sparsify_partial_matching
+from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
+from modernAlgo.sparsify import (
+    default_sparsify_sample_count,
+    sparsify_partial_matching_from_graph,
+)
 
 Node = Hashable
 Edge = Tuple[Node, Node]
@@ -88,41 +92,51 @@ def run_modern_oracle(
     Dict[str, Any]
         Dictionary containing all intermediate outputs and final estimate.
     """
-    edge_list = list(edges)
+    graph = EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
+    return run_modern_graph_oracle(graph, k=k, epsilon=epsilon, seed=seed)
+
+
+def run_modern_graph_oracle(
+    graph: BipartiteGraphOracle,
+    k: int | None = None,
+    epsilon: float | None = DEFAULT_PAPER_EPSILON,
+    seed: int | None = None,
+) -> Dict[str, Any]:
+    """
+    Full bipartite oracle-based implementation of the modern algorithm.
+
+    This is the graph-oracle entry point. It assumes adjacency-list access
+    through degree(v) and neighbor_at(v, i), and keeps the older edge-list
+    entry point as a thin wrapper around EdgeListBipartiteGraph.
+    """
     effective_k, k_source = choose_capacity_parameter(k=k, epsilon=epsilon)
 
     # Step 1: explicit sparsification matching M
-    M = sparsify_partial_matching(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edge_list,
+    M = sparsify_partial_matching_from_graph(
+        graph=graph,
         seed=seed,
     )
 
     # Step 2: Case 1
     case1_result = run_case1_oracle(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edge_list,
         M=M,
         k=effective_k,
         seed=seed,
+        graph=graph,
     )
 
     # Step 3: Case 2
     case2_result = run_case2_oracle(
-        left_nodes=left_nodes,
-        right_nodes=right_nodes,
-        edges=edge_list,
         M=M,
         k=effective_k,
         seed=seed,
+        graph=graph,
     )
 
     mu1 = case1_result["mu1"]
     mu2 = case2_result["mu2"]
     final_estimate = max(mu1, mu2)
-    num_vertices = len(left_nodes) + len(right_nodes)
+    num_vertices = graph.num_vertices()
     effective_sparsify_c = default_sparsify_sample_count(num_vertices)
 
     return {
