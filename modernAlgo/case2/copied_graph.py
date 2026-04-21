@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import random
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -134,6 +135,13 @@ class Case2CopiedView:
     def _copy_count(self, side: str, node: Node) -> int:
         return self._copy_counts.get((side, node), 0)
 
+    def _valid_copied_vertex(self, v: CopiedNode) -> bool:
+        side, node, copy_index = v
+        if side not in {"L", "R"}:
+            return False
+
+        return 0 <= copy_index < self._copy_count(side, node)
+
     def vertices(self) -> List[CopiedNode]:
         """
         Return all copied vertices in G2'.
@@ -147,26 +155,111 @@ class Case2CopiedView:
         if self._num_vertices == 0 or num_samples <= 0:
             return []
 
-        import random
-
         rng = random.Random(seed)
         return [
             self._copied_vertex_at(rng.randrange(self._num_vertices))
             for _ in range(num_samples)
         ]
 
+    def copied_degree(self, v: CopiedNode) -> int:
+        """
+        Return the degree of copied vertex v in G2' without materializing its edges.
+        """
+        if not self._valid_copied_vertex(v):
+            return 0
+
+        side, node, _ = v
+        if side == "L":
+            return sum(
+                self._copy_count("R", original_v)
+                for _, original_v in self._original_adj.get((side, node), [])
+            )
+
+        return sum(
+            self._copy_count("L", u)
+            for u, _ in self._original_adj.get((side, node), [])
+        )
+
+    def degree(self, v: CopiedNode) -> int:
+        """
+        Return the degree of copied vertex v in G2'.
+        """
+        return self.copied_degree(v)
+
+    def neighbor_at(self, v: CopiedNode, index: int) -> CopiedNode:
+        """
+        Return the index-th copied neighbor of v without materializing all neighbors.
+        """
+        degree = self.copied_degree(v)
+        if index < 0 or index >= degree:
+            raise IndexError("copied neighbor index out of range")
+
+        side, node, _ = v
+        offset = index
+
+        for u, original_v in self._original_adj.get((side, node), []):
+            if side == "L":
+                other_count = self._copy_count("R", original_v)
+                if offset < other_count:
+                    return ("R", original_v, offset)
+            else:
+                other_count = self._copy_count("L", u)
+                if offset < other_count:
+                    return ("L", u, offset)
+
+            offset -= other_count
+
+        raise RuntimeError("copied neighbor offset exceeded copied degree")
+
+    def incident_edge_at(self, v: CopiedNode, index: int) -> CopiedEdge:
+        """
+        Return the index-th copied edge incident to v without materializing all edges.
+        """
+        neighbor = self.neighbor_at(v, index)
+        if v[0] == "L":
+            return v, neighbor
+
+        return neighbor, v
+
+    def random_neighbor(
+        self,
+        v: CopiedNode,
+        rng: random.Random | None = None,
+    ) -> CopiedNode | None:
+        """
+        Sample a uniformly random copied neighbor of v in G2'.
+        """
+        if rng is None:
+            rng = random.Random()
+
+        degree = self.copied_degree(v)
+        if degree == 0:
+            return None
+
+        return self.neighbor_at(v, rng.randrange(degree))
+
+    def random_incident_edge(
+        self,
+        v: CopiedNode,
+        rng: random.Random | None = None,
+    ) -> CopiedEdge | None:
+        """
+        Sample a uniformly random copied edge incident to v in G2'.
+        """
+        neighbor = self.random_neighbor(v, rng)
+        if neighbor is None:
+            return None
+
+        return (v, neighbor) if v[0] == "L" else (neighbor, v)
+
     def incident_edges(self, v: CopiedNode) -> List[CopiedEdge]:
         """
         Return copied edges incident to copied vertex v.
         """
+        if not self._valid_copied_vertex(v):
+            return []
+
         side, node, copy_index = v
-        if side not in {"L", "R"}:
-            return []
-
-        own_count = self._copy_count(side, node)
-        if copy_index < 0 or copy_index >= own_count:
-            return []
-
         edges: List[CopiedEdge] = []
         for u, original_v in self._original_adj.get((side, node), []):
             if side == "L":

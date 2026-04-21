@@ -20,6 +20,15 @@ class GraphView(Protocol):
     - incident_edges(v):
         iterable of all undirected edges incident to v in the view
 
+    For lazy copied graphs, the oracle also supports an optional indexed
+    adjacency API:
+
+    - degree(v):
+        number of incident edges
+
+    - incident_edge_at(v, i):
+        i-th incident edge, for 0 <= i < degree(v)
+
     Notes
     -----
     Edges are treated as undirected.
@@ -91,6 +100,21 @@ class RGMMOracle:
         self.edge_cache_hits = 0
         self.vertex_cache_hits = 0
 
+    def _incident_edges(self, vertex: Node) -> Iterable[Edge]:
+        """
+        Iterate over incident edges, preferring indexed lazy access when present.
+        """
+        degree = getattr(self.graph, "degree", None)
+        incident_edge_at = getattr(self.graph, "incident_edge_at", None)
+
+        if callable(degree) and callable(incident_edge_at):
+            return (
+                incident_edge_at(vertex, index)
+                for index in range(degree(vertex))
+            )
+
+        return self.graph.incident_edges(vertex)
+
     def _lower_rank_neighboring_edges(self, edge: Edge) -> List[Edge]:
         """
         Return all edges incident to either endpoint of `edge` that appear
@@ -103,12 +127,12 @@ class RGMMOracle:
 
         neighbors: Set[Edge] = set()
 
-        for incident in self.graph.incident_edges(u):
+        for incident in self._incident_edges(u):
             inc = canonical_edge(incident)
             if inc != e and self.ranks.is_before(inc, e):
                 neighbors.add(inc)
 
-        for incident in self.graph.incident_edges(v):
+        for incident in self._incident_edges(v):
             inc = canonical_edge(incident)
             if inc != e and self.ranks.is_before(inc, e):
                 neighbors.add(inc)
@@ -152,7 +176,7 @@ class RGMMOracle:
             return self._vertex_cache[vertex]
 
         incident = sorted(
-            (canonical_edge(e) for e in self.graph.incident_edges(vertex)),
+            (canonical_edge(e) for e in self._incident_edges(vertex)),
             key=self.ranks.order_key,
         )
 
@@ -174,7 +198,7 @@ class RGMMOracle:
             The matched edge touching `vertex`, or None if `vertex` is unmatched.
         """
         incident = sorted(
-            (canonical_edge(e) for e in self.graph.incident_edges(vertex)),
+            (canonical_edge(e) for e in self._incident_edges(vertex)),
             key=self.ranks.order_key,
         )
 
