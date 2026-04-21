@@ -127,7 +127,10 @@ class BehnezhadRGMMOracle:
             index = -1
             log_miss = math.log1p(-probability)
             while True:
-                skip = math.floor(math.log(self.rng.random()) / log_miss)
+                draw = self.rng.random()
+                while draw == 0.0:
+                    draw = self.rng.random()
+                skip = math.floor(math.log(draw) / log_miss)
                 index += skip + 1
                 if index >= n:
                     break
