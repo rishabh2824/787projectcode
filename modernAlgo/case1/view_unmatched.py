@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from collections import defaultdict
+import random
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
 
 from modernAlgo.ranks import canonical_edge
+from modernAlgo.sparsify import build_adjacency_from_edges
 
 Node = Hashable
 Edge = Tuple[Node, Node]
@@ -22,19 +23,12 @@ def matched_vertices(matching: Iterable[Edge]) -> Set[Node]:
 
 class UnmatchedInducedView:
     """
-    View of the induced subgraph G[V \\ V(M)].
+    Lazy view of the induced subgraph G[V \\ V(M)].
 
-    This is the graph used for the inner RGMM oracle that defines M'
-    in the main paper's bipartite algorithm. Vertices matched in the
-    explicit sparsification matching M are removed, and only edges
-    between remaining vertices are kept.
-
-    This view supports exactly what RGMMOracle needs:
-    - vertices()
-    - incident_edges(v)
-
-    We build explicit adjacency for now. This is appropriate for getting
-    the oracle logic correct before optimizing further.
+    The view keeps original adjacency and explicit membership in V(M), but it
+    does not materialize induced edges. Random incident edges are obtained by
+    rejection sampling from the original graph adjacency list, matching the
+    paper's access pattern for induced subgraphs.
     """
 
     def __init__(
@@ -46,41 +40,114 @@ class UnmatchedInducedView:
     ) -> None:
         self.left_nodes = list(left_nodes)
         self.right_nodes = list(right_nodes)
-        self.edges = [canonical_edge(e) for e in edges]
+        self.original_edges = [canonical_edge(e) for e in edges]
 
         self._matched = matched_vertices(M)
-
-        self._vertices: List[Node] = [
+        self._unmatched_vertices: List[Node] = [
             v for v in (self.left_nodes + self.right_nodes) if v not in self._matched
         ]
-        self._vertex_set: Set[Node] = set(self._vertices)
+        self._unmatched_set: Set[Node] = set(self._unmatched_vertices)
+        self._original_adj = build_adjacency_from_edges(
+            self.left_nodes,
+            self.right_nodes,
+            self.original_edges,
+        )
+        self._induced_neighbors_cache: Dict[Node, List[Node]] = {}
+        self._num_edges: int | None = None
 
-        self._adj: Dict[Node, List[Edge]] = defaultdict(list)
-        for v in self._vertices:
-            self._adj[v] = []
+    def is_unmatched_vertex(self, v: Node) -> bool:
+        return v in self._unmatched_set
 
-        self._edges: List[Edge] = []
-        for e in self.edges:
-            u, v = e
-            if u in self._vertex_set and v in self._vertex_set:
-                self._edges.append(e)
-                self._adj[u].append(e)
-                self._adj[v].append(e)
+    def sample_vertices(self, num_samples: int, seed: int | None = None) -> List[Node]:
+        """
+        Sample vertices uniformly from V \\ V(M), with replacement.
+        """
+        if not self._unmatched_vertices or num_samples <= 0:
+            return []
 
-    def vertices(self) -> List[Node]:
-        """
-        Return all vertices in the induced unmatched subgraph.
-        """
-        return list(self._vertices)
+        rng = random.Random(seed)
+        return [rng.choice(self._unmatched_vertices) for _ in range(num_samples)]
 
-    def incident_edges(self, v: Node) -> List[Edge]:
+    def _induced_neighbors(self, v: Node) -> List[Node]:
+        if v not in self._unmatched_set:
+            return []
+
+        if v not in self._induced_neighbors_cache:
+            self._induced_neighbors_cache[v] = [
+                u for u in self._original_adj.get(v, []) if u in self._unmatched_set
+            ]
+
+        return self._induced_neighbors_cache[v]
+
+    def degree(self, v: Node) -> int:
         """
-        Return all edges incident to v in G[V \\ V(M)].
+        Return degree in G[V \\ V(M)].
         """
-        return list(self._adj.get(v, []))
+        return len(self._induced_neighbors(v))
+
+    def neighbor_at(self, v: Node, index: int) -> Node:
+        """
+        Return the index-th induced neighbor of v.
+        """
+        neighbors = self._induced_neighbors(v)
+        if index < 0 or index >= len(neighbors):
+            raise IndexError("unmatched induced neighbor index out of range")
+
+        return neighbors[index]
+
+    def incident_edge_at(self, v: Node, index: int) -> Edge:
+        """
+        Return the index-th induced edge incident to v.
+        """
+        return canonical_edge((v, self.neighbor_at(v, index)))
+
+    def random_neighbor(
+        self,
+        v: Node,
+        rng: random.Random | None = None,
+    ) -> Node | None:
+        """
+        Sample a uniformly random neighbor of v in G[V \\ V(M)].
+        """
+        if v not in self._unmatched_set:
+            return None
+
+        original_neighbors = self._original_adj.get(v, [])
+        if not original_neighbors:
+            return None
+
+        if rng is None:
+            rng = random.Random()
+
+        induced_degree = self.degree(v)
+        if induced_degree == 0:
+            return None
+
+        while True:
+            candidate = rng.choice(original_neighbors)
+            if candidate in self._unmatched_set:
+                return candidate
+
+    def random_incident_edge(
+        self,
+        v: Node,
+        rng: random.Random | None = None,
+    ) -> Edge | None:
+        """
+        Sample a uniformly random edge incident to v in G[V \\ V(M)].
+        """
+        neighbor = self.random_neighbor(v, rng)
+        if neighbor is None:
+            return None
+
+        return canonical_edge((v, neighbor))
 
     def num_vertices(self) -> int:
-        return len(self._vertices)
+        return len(self._unmatched_vertices)
 
     def num_edges(self) -> int:
-        return len(self._edges)
+        if self._num_edges is None:
+            total_degree = sum(self.degree(v) for v in self._unmatched_vertices)
+            self._num_edges = total_degree // 2
+
+        return self._num_edges

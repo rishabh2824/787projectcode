@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import math
-import random
-from typing import Hashable, Iterable, List, Sequence, Tuple, Dict, Any
+from typing import Hashable, Iterable, Sequence, Tuple, Dict, Any
 
 from modernAlgo.ranks import LazyEdgeRanks
 from modernAlgo.random_neighbor_rgmm_oracle import RandomNeighborRGMMOracle
-from modernAlgo.rgmm_oracle import RGMMOracle
 from modernAlgo.case1.view_copied import Case1CopiedView
 from modernAlgo.case1.view_unmatched import UnmatchedInducedView
 
@@ -35,21 +33,6 @@ def apply_additive_slack(estimate: float, num_original_vertices: int) -> float:
     return max(0.0, estimate - paper_additive_slack(num_original_vertices))
 
 
-def sample_random_vertices(
-    vertices: Sequence,
-    num_samples: int,
-    seed: int | None = None,
-) -> List:
-    """
-    Sample vertices uniformly at random with replacement.
-    """
-    if not vertices or num_samples <= 0:
-        return []
-
-    rng = random.Random(seed)
-    return [rng.choice(vertices) for _ in range(num_samples)]
-
-
 def estimate_mprime_size_from_inner_oracle(
     left_nodes: Sequence[Node],
     right_nodes: Sequence[Node],
@@ -76,8 +59,7 @@ def estimate_mprime_size_from_inner_oracle(
         M=M,
     )
 
-    unmatched_vertices = view.vertices()
-    unmatched_num_vertices = len(unmatched_vertices)
+    unmatched_num_vertices = view.num_vertices()
     n_total = len(left_nodes) + len(right_nodes)
 
     if unmatched_num_vertices == 0:
@@ -95,10 +77,13 @@ def estimate_mprime_size_from_inner_oracle(
     num_samples = paper_sample_count(n_total)
 
     ranks = LazyEdgeRanks(seed=seed)
-    inner_oracle = RGMMOracle(view, ranks)
+    inner_oracle = RandomNeighborRGMMOracle(
+        view,
+        ranks,
+        seed=None if seed is None else seed + 5_000_003,
+    )
 
-    sampled_vertices = sample_random_vertices(
-        unmatched_vertices,
+    sampled_vertices = view.sample_vertices(
         num_samples=num_samples,
         seed=seed,
     )
@@ -128,7 +113,7 @@ def estimate_b1_size_from_outer_oracle(
     right_nodes: Sequence[Node],
     edges: Iterable[Edge],
     M: Iterable[Edge],
-    inner_oracle: RGMMOracle,
+    inner_oracle: RandomNeighborRGMMOracle,
     k: int,
     seed: int | None = None,
 ) -> Dict[str, Any]:
