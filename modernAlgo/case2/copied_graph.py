@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 import random
-from collections import defaultdict
 from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
 
 from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
@@ -33,8 +32,8 @@ class Case2CopiedView:
     - vertices in V \\ V(M) get ceil(k*b) copies
     - each original edge in G2 induces all edges between the relevant copies
 
-    The original G2 edge set is stored, but copied vertices and copied edges
-    are generated on demand instead of being materialized into adjacency lists.
+    Copied neighbors are generated on demand from the original graph oracle.
+    The view does not materialize G2 edges or copied edges.
     """
 
     def __init__(
@@ -65,8 +64,6 @@ class Case2CopiedView:
         self.right_nodes = (
             list(graph.right_vertices()) if right_nodes is None else list(right_nodes)
         )
-        self.original_edges = list(self._iter_left_edges())
-
         self.k = k
         self.b = b
         self.kb = math.ceil(k * b)
@@ -79,20 +76,6 @@ class Case2CopiedView:
         self.matched_right = [v for v in self.right_nodes if v in self._matched]
         self.unmatched_right = [v for v in self.right_nodes if v not in self._matched]
 
-        matched_left_set = set(self.matched_left)
-        unmatched_left_set = set(self.unmatched_left)
-        matched_right_set = set(self.matched_right)
-        unmatched_right_set = set(self.unmatched_right)
-
-        # Original G2 edges:
-        #   (matched_left, unmatched_right) OR (unmatched_left, matched_right)
-        self.g2_edges: List[OriginalEdge] = [
-            (u, v)
-            for (u, v) in self.original_edges
-            if (u in matched_left_set and v in unmatched_right_set)
-            or (u in unmatched_left_set and v in matched_right_set)
-        ]
-
         self._copy_counts: Dict[Tuple[str, Node], int] = {}
         for u in self.matched_left:
             self._copy_counts[("L", u)] = self.k
@@ -103,25 +86,12 @@ class Case2CopiedView:
         for v in self.unmatched_right:
             self._copy_counts[("R", v)] = self.kb
 
-        self._original_adj: Dict[Tuple[str, Node], List[OriginalEdge]] = defaultdict(list)
-        for u, v in self.g2_edges:
-            self._original_adj[("L", u)].append((u, v))
-            self._original_adj[("R", v)].append((u, v))
-
         self._num_vertices = (
             self.k * (len(self.matched_left) + len(self.matched_right))
             + self.kb * (len(self.unmatched_left) + len(self.unmatched_right))
         )
-        self._num_edges = sum(
-            self._copy_counts[("L", u)] * self._copy_counts[("R", v)]
-            for u, v in self.g2_edges
-        )
-
-    def _iter_left_edges(self) -> Iterable[OriginalEdge]:
-        for u in self.left_nodes:
-            for index in range(self.graph.degree(u)):
-                v = self.graph.neighbor_at(u, index)
-                yield (u, v)
+        self._degree_cache: Dict[CopiedNode, int] = {}
+        self._num_edges: int | None = None
 
     def _copied_vertex_at(self, index: int) -> CopiedNode:
         if index < 0 or index >= self._num_vertices:
@@ -146,6 +116,14 @@ class Case2CopiedView:
 
     def _copy_count(self, side: str, node: Node) -> int:
         return self._copy_counts.get((side, node), 0)
+
+    def _original_copy_count(self, node: Node) -> int:
+        return self._copy_count(self.graph.side(node), node)
+
+    def _valid_original_neighbor(self, node: Node, neighbor: Node) -> bool:
+        return self._original_copy_count(neighbor) > 0 and (
+            (node in self._matched) != (neighbor in self._matched)
+        )
 
     def _valid_copied_vertex(self, v: CopiedNode) -> bool:
         side, node, copy_index = v
@@ -180,17 +158,17 @@ class Case2CopiedView:
         if not self._valid_copied_vertex(v):
             return 0
 
-        side, node, _ = v
-        if side == "L":
-            return sum(
-                self._copy_count("R", original_v)
-                for _, original_v in self._original_adj.get((side, node), [])
-            )
+        if v not in self._degree_cache:
+            _, node, _ = v
+            degree = 0
+            for index in range(self.graph.degree(node)):
+                neighbor = self.graph.neighbor_at(node, index)
+                if self._valid_original_neighbor(node, neighbor):
+                    degree += self._original_copy_count(neighbor)
 
-        return sum(
-            self._copy_count("L", u)
-            for u, _ in self._original_adj.get((side, node), [])
-        )
+            self._degree_cache[v] = degree
+
+        return self._degree_cache[v]
 
     def degree(self, v: CopiedNode) -> int:
         """
@@ -206,18 +184,17 @@ class Case2CopiedView:
         if index < 0 or index >= degree:
             raise IndexError("copied neighbor index out of range")
 
-        side, node, _ = v
+        _, node, _ = v
         offset = index
 
-        for u, original_v in self._original_adj.get((side, node), []):
-            if side == "L":
-                other_count = self._copy_count("R", original_v)
-                if offset < other_count:
-                    return ("R", original_v, offset)
-            else:
-                other_count = self._copy_count("L", u)
-                if offset < other_count:
-                    return ("L", u, offset)
+        for neighbor_index in range(self.graph.degree(node)):
+            neighbor = self.graph.neighbor_at(node, neighbor_index)
+            if not self._valid_original_neighbor(node, neighbor):
+                continue
+
+            other_count = self._original_copy_count(neighbor)
+            if offset < other_count:
+                return (self.graph.side(neighbor), neighbor, offset)
 
             offset -= other_count
 
@@ -271,19 +248,10 @@ class Case2CopiedView:
         if not self._valid_copied_vertex(v):
             return []
 
-        side, node, copy_index = v
         edges: List[CopiedEdge] = []
-        for u, original_v in self._original_adj.get((side, node), []):
-            if side == "L":
-                other_count = self._copy_count("R", original_v)
-                left_copy = ("L", u, copy_index)
-                for j in range(other_count):
-                    edges.append((left_copy, ("R", original_v, j)))
-            else:
-                other_count = self._copy_count("L", u)
-                right_copy = ("R", original_v, copy_index)
-                for i in range(other_count):
-                    edges.append((("L", u, i), right_copy))
+        for index in range(self.copied_degree(v)):
+            neighbor = self.neighbor_at(v, index)
+            edges.append((v, neighbor) if v[0] == "L" else (neighbor, v))
 
         return edges
 
@@ -291,4 +259,17 @@ class Case2CopiedView:
         return self._num_vertices
 
     def num_edges(self) -> int:
+        if self._num_edges is None:
+            total = 0
+            for u in self.left_nodes:
+                left_count = self._copy_count("L", u)
+                if left_count == 0:
+                    continue
+                for index in range(self.graph.degree(u)):
+                    v = self.graph.neighbor_at(u, index)
+                    if self._valid_original_neighbor(u, v):
+                        total += left_count * self._copy_count("R", v)
+
+            self._num_edges = total
+
         return self._num_edges
