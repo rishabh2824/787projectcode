@@ -10,6 +10,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from modernAlgo.ranks import LazyEdgeRanks
+from modernAlgo.random_neighbor_rgmm_oracle import RandomNeighborRGMMOracle
 from modernAlgo.rgmm_oracle import RGMMOracle
 from modernAlgo.case1.view_copied import Case1CopiedView
 from modernAlgo.case1.view_unmatched import UnmatchedInducedView
@@ -182,7 +183,11 @@ def estimate_b1_size_from_outer_oracle(
 
     # Important: outer oracle needs its own independent random ordering
     outer_ranks = LazyEdgeRanks(seed=None if seed is None else seed + 10_000_003)
-    outer_oracle = RGMMOracle(copied_view, outer_ranks)
+    outer_oracle = RandomNeighborRGMMOracle(
+        copied_view,
+        outer_ranks,
+        seed=None if seed is None else seed + 30_000_003,
+    )
 
     sampled_vertices = copied_view.sample_vertices(
         num_samples=num_samples,

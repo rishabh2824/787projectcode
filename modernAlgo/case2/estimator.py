@@ -9,7 +9,7 @@ if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from modernAlgo.ranks import LazyEdgeRanks
-from modernAlgo.rgmm_oracle import RGMMOracle
+from modernAlgo.random_neighbor_rgmm_oracle import RandomNeighborRGMMOracle
 from modernAlgo.case2.copied_graph import Case2CopiedView
 from modernAlgo.case1.estimator import (
     apply_additive_slack,
@@ -77,7 +77,11 @@ def estimate_b2_size_from_oracle(
     num_samples = paper_sample_count(n_total)
 
     ranks = LazyEdgeRanks(seed=seed)
-    oracle = RGMMOracle(view, ranks)
+    oracle = RandomNeighborRGMMOracle(
+        view,
+        ranks,
+        seed=None if seed is None else seed + 10_000_003,
+    )
 
     sampled_vertices = view.sample_vertices(
         num_samples=num_samples,
