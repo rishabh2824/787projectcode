@@ -5,7 +5,7 @@ import random
 from collections import defaultdict
 from typing import Dict, Hashable, Iterable, Optional, Protocol, Tuple
 
-from modernAlgo.ranks import EdgeRanks, canonical_edge
+from modernAlgo.ranks import canonical_edge
 
 Node = Hashable
 Edge = Tuple[Node, Node]
@@ -36,7 +36,8 @@ class BehnezhadRGMMOracle:
     - Algorithm 8: lowest(v, i)
     - expose_next(v): lazily exposes rank intervals of v's adjacency list
 
-    The public API matches the existing project oracles.
+    The oracle uses adjacency-list graph access and samples edge-rank
+    intervals lazily, so copied graphs do not need to be materialized.
     """
 
     def __init__(
@@ -44,15 +45,12 @@ class BehnezhadRGMMOracle:
         graph_view: AdjacencyListGraphView,
         seed: int | None = None,
         max_degree_bound: int | None = None,
-        validation_rank_provider: EdgeRanks | None = None,
     ) -> None:
         self.graph = graph_view
         self.rng = random.Random(seed)
-        self.validation_rank_provider = validation_rank_provider
         self.max_degree_bound = self._choose_degree_bound(max_degree_bound)
         self.intervals = self._build_intervals(self.max_degree_bound)
 
-        self._edge_ranks: Dict[Edge, float] = {}
         self._edge_interval: Dict[Edge, int] = {}
         self._exposed_by_node: Dict[Node, Dict[Node, float]] = defaultdict(dict)
         self._k: Dict[Node, int] = defaultdict(int)
@@ -60,16 +58,6 @@ class BehnezhadRGMMOracle:
         self._oriented_edge_cache: Dict[tuple[Edge, Node], bool] = {}
         self._vertex_cache: Dict[Node, bool] = {}
         self._matched_edge_cache: Dict[Node, Optional[Edge]] = {}
-
-        self.vertex_queries = 0
-        self.edge_queries = 0
-        self.vertex_cache_hits = 0
-        self.edge_cache_hits = 0
-        self.lowest_queries = 0
-        self.expose_next_calls = 0
-        self.neighbor_queries = 0
-        self.sampled_indices = 0
-        self.max_recursion_depth = 0
 
     def _choose_degree_bound(self, max_degree_bound: int | None) -> int:
         if max_degree_bound is not None:
@@ -100,20 +88,6 @@ class BehnezhadRGMMOracle:
 
         return intervals
 
-    def reset_caches(self) -> None:
-        """
-        Clear oracle answers while keeping exposed ranks and adjacency state.
-        """
-        self._oriented_edge_cache.clear()
-        self._vertex_cache.clear()
-        self._matched_edge_cache.clear()
-
-        self.vertex_queries = 0
-        self.edge_queries = 0
-        self.vertex_cache_hits = 0
-        self.edge_cache_hits = 0
-        self.max_recursion_depth = 0
-
     def _sample_indices(self, n: int, probability: float) -> Iterable[int]:
         """
         Sample indices from range(n), independently with the given probability.
@@ -138,34 +112,6 @@ class BehnezhadRGMMOracle:
 
         return generator()
 
-    def _indices_for_interval(
-        self,
-        v: Node,
-        interval_start: float,
-        interval_end: float,
-        probability: float,
-    ) -> Iterable[int]:
-        """
-        Return adjacency-list indices to inspect for an interval.
-
-        In normal mode this uses the sublinear Bernoulli index sampler from
-        Appendix A. In validation mode, an external rank provider fixes the
-        full edge permutation, so we scan the small test graph's adjacency list
-        and select exactly the edges whose ranks lie in this interval.
-        """
-        degree = self.graph.degree(v)
-        if self.validation_rank_provider is None:
-            return self._sample_indices(degree, probability)
-
-        def generator() -> Iterable[int]:
-            for index in range(degree):
-                u = self.graph.neighbor_at(v, index)
-                rank = self.validation_rank_provider.rank((v, u))
-                if interval_start <= rank < interval_end:
-                    yield index
-
-        return generator()
-
     def _exposed_ready_count(self, v: Node) -> int:
         k_v = self._k[v]
         return sum(
@@ -185,7 +131,6 @@ class BehnezhadRGMMOracle:
 
     def _expose_edge(self, v: Node, u: Node, interval_index: int, rank: float) -> None:
         edge = canonical_edge((v, u))
-        self._edge_ranks[edge] = rank
         self._edge_interval[edge] = interval_index
         self._exposed_by_node[v][u] = rank
         self._exposed_by_node[u][v] = rank
@@ -198,24 +143,18 @@ class BehnezhadRGMMOracle:
         if current_k >= len(self.intervals):
             return
 
-        self.expose_next_calls += 1
         start, end = self.intervals[current_k]
         probability = (end - start) / (1.0 - start)
         degree = self.graph.degree(v)
 
-        for index in self._indices_for_interval(v, start, end, probability):
-            self.sampled_indices += 1
+        for index in self._sample_indices(degree, probability):
             u = self.graph.neighbor_at(v, index)
-            self.neighbor_queries += 1
 
             if u in self._exposed_by_node[v]:
                 continue
 
             if self._k[u] <= current_k:
-                if self.validation_rank_provider is None:
-                    rank = self.rng.uniform(start, end)
-                else:
-                    rank = self.validation_rank_provider.rank((v, u))
+                rank = self.rng.uniform(start, end)
                 self._expose_edge(v, u, current_k, rank)
 
         self._k[v] += 1
@@ -224,7 +163,6 @@ class BehnezhadRGMMOracle:
         """
         Return the 1-indexed index-th lowest-rank neighbor of v.
         """
-        self.lowest_queries += 1
         if index <= 0:
             raise ValueError("lowest index must be positive")
         if index > self.graph.degree(v):
@@ -246,18 +184,14 @@ class BehnezhadRGMMOracle:
         self,
         edge: Edge,
         endpoint: Node,
-        recursion_depth: int = 0,
     ) -> bool:
         """
         Algorithm 7: determine whether endpoint is free before edge is processed.
         """
-        self.max_recursion_depth = max(self.max_recursion_depth, recursion_depth)
         e = canonical_edge(edge)
         cache_key = (e, endpoint)
-        self.edge_queries += 1
 
         if cache_key in self._oriented_edge_cache:
-            self.edge_cache_hits += 1
             return self._oriented_edge_cache[cache_key]
 
         other = e[1] if endpoint == e[0] else e[0]
@@ -268,7 +202,6 @@ class BehnezhadRGMMOracle:
             if self._oriented_edge_available(
                 (endpoint, w),
                 w,
-                recursion_depth=recursion_depth + 1,
             ):
                 self._oriented_edge_cache[cache_key] = False
                 return False
@@ -304,10 +237,7 @@ class BehnezhadRGMMOracle:
         """
         Return True iff vertex is matched in the locally simulated RGMM.
         """
-        self.vertex_queries += 1
-
         if vertex in self._vertex_cache:
-            self.vertex_cache_hits += 1
             return self._vertex_cache[vertex]
 
         matched = self.matched_edge(vertex) is not None

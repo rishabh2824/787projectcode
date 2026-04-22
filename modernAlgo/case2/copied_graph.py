@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
+from typing import Dict, Hashable, Iterable, List, Set, Tuple
 
-from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
+from modernAlgo.graph_oracle import BipartiteGraphOracle
 
 Node = Hashable
 OriginalEdge = Tuple[Node, Node]
 CopiedNode = Tuple[str, Node, int]
-CopiedEdge = Tuple[CopiedNode, CopiedNode]
 
 
 def matched_vertices(matching: Iterable[OriginalEdge]) -> Set[Node]:
@@ -38,13 +37,10 @@ class Case2CopiedView:
 
     def __init__(
         self,
-        left_nodes: Sequence[Node] | None = None,
-        right_nodes: Sequence[Node] | None = None,
-        edges: Iterable[OriginalEdge] | None = None,
+        graph: BipartiteGraphOracle,
         M: Iterable[OriginalEdge] = (),
         k: int = 10,
         b: float | None = None,
-        graph: BipartiteGraphOracle | None = None,
     ) -> None:
         if k <= 0:
             raise ValueError("k must be positive")
@@ -52,18 +48,9 @@ class Case2CopiedView:
         if b is None:
             b = 1.0 + math.sqrt(2.0)
 
-        if graph is None:
-            if left_nodes is None or right_nodes is None or edges is None:
-                raise ValueError("provide either graph or left_nodes/right_nodes/edges")
-            graph = EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
-
         self.graph = graph
-        self.left_nodes = (
-            list(graph.left_vertices()) if left_nodes is None else list(left_nodes)
-        )
-        self.right_nodes = (
-            list(graph.right_vertices()) if right_nodes is None else list(right_nodes)
-        )
+        self.left_nodes = list(graph.left_vertices())
+        self.right_nodes = list(graph.right_vertices())
         self.k = k
         self.b = b
         self.kb = math.ceil(k * b)
@@ -91,7 +78,6 @@ class Case2CopiedView:
             + self.kb * (len(self.unmatched_left) + len(self.unmatched_right))
         )
         self._degree_cache: Dict[CopiedNode, int] = {}
-        self._num_edges: int | None = None
 
     def _copied_vertex_at(self, index: int) -> CopiedNode:
         if index < 0 or index >= self._num_vertices:
@@ -132,12 +118,6 @@ class Case2CopiedView:
 
         return 0 <= copy_index < self._copy_count(side, node)
 
-    def vertex_at(self, index: int) -> CopiedNode:
-        """
-        Return the index-th copied vertex without materializing all vertices.
-        """
-        return self._copied_vertex_at(index)
-
     def sample_vertices(self, num_samples: int, seed: int | None = None) -> List[CopiedNode]:
         """
         Sample copied vertices uniformly with replacement without materializing all vertices.
@@ -151,7 +131,7 @@ class Case2CopiedView:
             for _ in range(num_samples)
         ]
 
-    def copied_degree(self, v: CopiedNode) -> int:
+    def _copied_degree(self, v: CopiedNode) -> int:
         """
         Return the degree of copied vertex v in G2' without materializing its edges.
         """
@@ -174,13 +154,13 @@ class Case2CopiedView:
         """
         Return the degree of copied vertex v in G2'.
         """
-        return self.copied_degree(v)
+        return self._copied_degree(v)
 
     def neighbor_at(self, v: CopiedNode, index: int) -> CopiedNode:
         """
         Return the index-th copied neighbor of v without materializing all neighbors.
         """
-        degree = self.copied_degree(v)
+        degree = self._copied_degree(v)
         if index < 0 or index >= degree:
             raise IndexError("copied neighbor index out of range")
 
@@ -200,76 +180,5 @@ class Case2CopiedView:
 
         raise RuntimeError("copied neighbor offset exceeded copied degree")
 
-    def incident_edge_at(self, v: CopiedNode, index: int) -> CopiedEdge:
-        """
-        Return the index-th copied edge incident to v without materializing all edges.
-        """
-        neighbor = self.neighbor_at(v, index)
-        if v[0] == "L":
-            return v, neighbor
-
-        return neighbor, v
-
-    def random_neighbor(
-        self,
-        v: CopiedNode,
-        rng: random.Random | None = None,
-    ) -> CopiedNode | None:
-        """
-        Sample a uniformly random copied neighbor of v in G2'.
-        """
-        if rng is None:
-            rng = random.Random()
-
-        degree = self.copied_degree(v)
-        if degree == 0:
-            return None
-
-        return self.neighbor_at(v, rng.randrange(degree))
-
-    def random_incident_edge(
-        self,
-        v: CopiedNode,
-        rng: random.Random | None = None,
-    ) -> CopiedEdge | None:
-        """
-        Sample a uniformly random copied edge incident to v in G2'.
-        """
-        neighbor = self.random_neighbor(v, rng)
-        if neighbor is None:
-            return None
-
-        return (v, neighbor) if v[0] == "L" else (neighbor, v)
-
-    def incident_edges(self, v: CopiedNode) -> List[CopiedEdge]:
-        """
-        Return copied edges incident to copied vertex v.
-        """
-        if not self._valid_copied_vertex(v):
-            return []
-
-        edges: List[CopiedEdge] = []
-        for index in range(self.copied_degree(v)):
-            neighbor = self.neighbor_at(v, index)
-            edges.append((v, neighbor) if v[0] == "L" else (neighbor, v))
-
-        return edges
-
     def num_vertices(self) -> int:
         return self._num_vertices
-
-    def num_edges(self) -> int:
-        if self._num_edges is None:
-            total = 0
-            for u in self.left_nodes:
-                left_count = self._copy_count("L", u)
-                if left_count == 0:
-                    continue
-                for index in range(self.graph.degree(u)):
-                    v = self.graph.neighbor_at(u, index)
-                    if self._valid_original_neighbor(u, v):
-                        total += left_count * self._copy_count("R", v)
-
-            self._num_edges = total
-
-        return self._num_edges

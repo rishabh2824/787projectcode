@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 import math
 import random
-from collections import defaultdict
-from typing import Dict, Hashable, Iterable, List, Sequence, Set, Tuple
+from typing import Hashable, List, Set, Tuple
 
-from modernAlgo.graph_oracle import BipartiteGraphOracle, EdgeListBipartiteGraph
+from modernAlgo.graph_oracle import BipartiteGraphOracle
 
 Node = Hashable
 Edge = Tuple[Node, Node]
@@ -18,43 +18,6 @@ def default_sparsify_sample_count(num_vertices: int) -> int:
         return 0
 
     return math.ceil(2 * math.sqrt(num_vertices) * math.log(max(num_vertices, 2)))
-
-
-def build_adjacency_from_edges(
-    left_nodes: Sequence[Node],
-    right_nodes: Sequence[Node],
-    edges: Iterable[Edge],
-) -> Dict[Node, List[Node]]:
-    """
-    Build an undirected adjacency list from a bipartite edge list.
-
-    Returns
-    -------
-    Dict[Node, List[Node]]
-        adjacency list for all vertices in U union V
-    """
-    adjacency: Dict[Node, List[Node]] = defaultdict(list)
-
-    for u in left_nodes:
-        adjacency[u] = []
-    for v in right_nodes:
-        adjacency[v] = []
-
-    for u, v in edges:
-        adjacency[u].append(v)
-        adjacency[v].append(u)
-
-    return adjacency
-
-
-def sparsify_partial_matching(
-    left_nodes: Sequence[Node],
-    right_nodes: Sequence[Node],
-    edges: Iterable[Edge],
-    seed: int | None = None,
-) -> List[Edge]:
-    graph = EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
-    return sparsify_partial_matching_from_graph(graph, seed=seed)
 
 
 def sparsify_partial_matching_from_graph(

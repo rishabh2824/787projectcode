@@ -112,7 +112,6 @@ def run_single_experiment(
     case2 = modern_result["case2"]
 
     unmatched_num_vertices = case1["unmatched_num_vertices"]
-    unmatched_num_edges = case1["unmatched_num_edges"]
 
     M_prime_estimate = case1["Mprime_estimate"]
     B1_estimate = case1["B1_estimate"]
@@ -142,7 +141,7 @@ def run_single_experiment(
         f"selected={selected_case:5s}, k={effective_k:4d}({k_source}), "
         f"sparsify_c={effective_sparsify_c:4d}, "
         f"add_slack={additive_slack:8.4f}, "
-        f"|M|={M_size:4d}, unmatched_V={unmatched_num_vertices:4d}, unmatched_E={unmatched_num_edges:4d}, "
+        f"|M|={M_size:4d}, unmatched_V={unmatched_num_vertices:4d}, "
         f"M'_est={M_prime_estimate:8.4f}, "
         f"B1_est={B1_estimate:8.4f}, B2_est={B2_estimate:8.4f}, "
         f"mu1={mu1:.4f}, mu2={mu2:.4f}, "

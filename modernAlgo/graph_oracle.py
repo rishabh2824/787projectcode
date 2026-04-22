@@ -39,8 +39,7 @@ class EdgeListBipartiteGraph:
     Adjacency-list oracle wrapper for the project's existing edge-list graphs.
 
     This keeps the experiment generators usable while letting the algorithm
-    consume graph-oracle operations. Edges are stored in left-to-right direction
-    for testing, reporting, and exact baselines.
+    consume graph-oracle operations.
     """
 
     def __init__(
@@ -63,7 +62,6 @@ class EdgeListBipartiteGraph:
         for v in self._vertices:
             self._adjacency[v] = []
 
-        self._edges: List[Edge] = []
         seen_edges: set[Edge] = set()
 
         for a, b in edges:
@@ -73,7 +71,6 @@ class EdgeListBipartiteGraph:
                 continue
 
             seen_edges.add(edge)
-            self._edges.append(edge)
             self._adjacency[u].append(v)
             self._adjacency[v].append(u)
 
@@ -93,9 +90,6 @@ class EdgeListBipartiteGraph:
 
     def vertices(self) -> Sequence[Node]:
         return self._vertices
-
-    def edges(self) -> Sequence[Edge]:
-        return self._edges
 
     def num_vertices(self) -> int:
         return len(self._vertices)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import time
 from typing import Any, Dict, Hashable, Iterable, Sequence, Tuple
 
 from modernAlgo.case1.estimator import run_case1_oracle
@@ -90,7 +91,7 @@ def run_modern_oracle(
     Returns
     -------
     Dict[str, Any]
-        Dictionary containing all intermediate outputs and final estimate.
+        Dictionary containing the final estimate and estimator metadata.
     """
     graph = EdgeListBipartiteGraph(left_nodes, right_nodes, edges)
     return run_modern_graph_oracle(graph, k=k, epsilon=epsilon, seed=seed)
@@ -106,32 +107,38 @@ def run_modern_graph_oracle(
     Full bipartite oracle-based implementation of the modern algorithm.
 
     This is the graph-oracle entry point. It assumes adjacency-list access
-    through degree(v) and neighbor_at(v, i), and keeps the older edge-list
-    entry point as a thin wrapper around EdgeListBipartiteGraph.
+    through degree(v) and neighbor_at(v, i). The edge-list entry point above
+    exists only to adapt the repository's experiment generators.
     """
     effective_k, k_source = choose_capacity_parameter(k=k, epsilon=epsilon)
 
     # Step 1: explicit sparsification matching M
+    start = time.perf_counter()
     M = sparsify_partial_matching_from_graph(
         graph=graph,
         seed=seed,
     )
+    t_sparsify = time.perf_counter() - start
 
     # Step 2: Case 1
+    start = time.perf_counter()
     case1_result = run_case1_oracle(
         M=M,
         k=effective_k,
         seed=seed,
         graph=graph,
     )
+    t_case1 = time.perf_counter() - start
 
     # Step 3: Case 2
+    start = time.perf_counter()
     case2_result = run_case2_oracle(
         M=M,
         k=effective_k,
         seed=seed,
         graph=graph,
     )
+    t_case2 = time.perf_counter() - start
 
     mu1 = case1_result["mu1"]
     mu2 = case2_result["mu2"]
@@ -149,6 +156,9 @@ def run_modern_graph_oracle(
         "k_source": k_source,
         "epsilon": epsilon,
         "sparsify_c": effective_sparsify_c,
+        "t_sparsify": t_sparsify,
+        "t_case1": t_case1,
+        "t_case2": t_case2,
         "case1": case1_result,
         "case2": case2_result,
     }
