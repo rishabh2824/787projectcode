@@ -36,6 +36,7 @@ SERIES_STYLES = {
 }
 
 MODERN_B = 1.0 + 2.0**0.5
+IGNORED_EPSILONS = {0.1}
 
 
 def read_rows(path: Path) -> List[Dict[str, str]]:
@@ -46,6 +47,10 @@ def read_rows(path: Path) -> List[Dict[str, str]]:
 def as_float(row: Dict[str, str], key: str) -> float:
     value = row.get(key, "")
     return float(value) if value != "" else 0.0
+
+
+def epsilon_filtered_rows(rows: Sequence[Dict[str, str]]) -> List[Dict[str, str]]:
+    return [row for row in rows if as_float(row, "epsilon") not in IGNORED_EPSILONS]
 
 
 def graph_families(rows: Sequence[Dict[str, str]]) -> List[str]:
@@ -131,10 +136,9 @@ def configure_axes(ax, title: str, xlabel: str, ylabel: str) -> None:
         ax.legend(frameon=False)
 
 
-def save_figure(fig, output_dir: Path, stem: str, formats: Sequence[str]) -> None:
+def save_figure(fig, output_dir: Path, stem: str) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    for fmt in formats:
-        fig.savefig(output_dir / f"{stem}.{fmt}", bbox_inches="tight", dpi=300)
+    fig.savefig(output_dir / f"{stem}.png", bbox_inches="tight", dpi=300)
     plt.close(fig)
 
 
@@ -142,7 +146,6 @@ def plot_approximation_by_graph(
     rows: Sequence[Dict[str, str]],
     graph_type: str,
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     graph_rows = [row for row in rows if row["graph_type"] == graph_type]
     if not graph_rows:
@@ -179,7 +182,7 @@ def plot_approximation_by_graph(
         linewidth=1.8,
     )
 
-    ax.set_ylim(bottom=0.0)
+    ax.set_ylim(0.75, 1.05)
     configure_axes(
         ax,
         title=f"Approximation Ratio vs Graph Size ({graph_label(graph_type)})",
@@ -190,7 +193,6 @@ def plot_approximation_by_graph(
         fig,
         output_dir,
         f"approx_ratio_vs_n_{graph_type}",
-        formats,
     )
 
 
@@ -198,7 +200,6 @@ def plot_runtime_by_graph(
     rows: Sequence[Dict[str, str]],
     graph_type: str,
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     graph_rows = [row for row in rows if row["graph_type"] == graph_type]
     if not graph_rows:
@@ -237,7 +238,6 @@ def plot_runtime_by_graph(
         fig,
         output_dir,
         f"runtime_vs_n_{graph_type}",
-        formats,
     )
 
 
@@ -245,7 +245,6 @@ def plot_approximation_by_density(
     rows: Sequence[Dict[str, str]],
     graph_type: str,
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     graph_rows = [row for row in rows if row["graph_type"] == graph_type]
     if not graph_rows:
@@ -286,7 +285,7 @@ def plot_approximation_by_density(
         linewidth=1.8,
     )
 
-    ax.set_ylim(bottom=0.0)
+    ax.set_ylim(0.75, 1.05)
     configure_axes(
         ax,
         title=f"Approximation Ratio vs Density ({graph_label(graph_type)})",
@@ -297,7 +296,6 @@ def plot_approximation_by_density(
         fig,
         output_dir,
         f"approx_ratio_vs_density_{graph_type}",
-        formats,
     )
 
 
@@ -305,7 +303,6 @@ def plot_modern_decomposition(
     rows: Sequence[Dict[str, str]],
     graph_type: str,
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     graph_rows = [row for row in rows if row["graph_type"] == graph_type]
     if not graph_rows:
@@ -388,7 +385,6 @@ def plot_modern_decomposition(
         fig,
         output_dir,
         f"modern_decomposition_{graph_type}",
-        formats,
     )
 
 
@@ -396,7 +392,6 @@ def plot_case_selection_heatmap(
     rows: Sequence[Dict[str, str]],
     graph_type: str,
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     graph_rows = [row for row in rows if row["graph_type"] == graph_type]
     if not graph_rows:
@@ -445,7 +440,6 @@ def plot_case_selection_heatmap(
         fig,
         output_dir,
         f"case_selection_heatmap_{graph_type}",
-        formats,
     )
 
 
@@ -463,7 +457,6 @@ def plot_runtime_breakdown(
     rows: Sequence[Dict[str, str]],
     graph_type: str,
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     graph_rows = [row for row in rows if row["graph_type"] == graph_type]
     if not graph_rows or not has_runtime_breakdown(graph_rows):
@@ -534,14 +527,12 @@ def plot_runtime_breakdown(
         fig,
         output_dir,
         f"modern_runtime_breakdown_{graph_type}",
-        formats,
     )
 
 
 def plot_error_distribution(
     rows: Sequence[Dict[str, str]],
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     families = graph_families(rows)
     if not families:
@@ -598,20 +589,19 @@ def plot_error_distribution(
     ]
     ax.legend(handles=legend_handles, frameon=False)
     ax.set_xticks(center_positions, center_labels)
-    ax.set_ylim(bottom=0.0)
+    ax.set_ylim(0.6, 1.0)
     configure_axes(
         ax,
         title="Approximation Ratio Distribution by Graph Family",
         xlabel="graph family",
         ylabel="approximation ratio",
     )
-    save_figure(fig, output_dir, "ratio_distribution_by_family", formats)
+    save_figure(fig, output_dir, "ratio_distribution_by_family")
 
 
 def plot_estimate_error_vs_opt(
     rows: Sequence[Dict[str, str]],
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     if not rows:
         return
@@ -634,14 +624,14 @@ def plot_estimate_error_vs_opt(
         xlabel="OPT",
         ylabel="modern_estimate - OPT",
     )
-    save_figure(fig, output_dir, "modern_error_vs_opt", formats)
+    save_figure(fig, output_dir, "modern_error_vs_opt")
 
 
 def plot_epsilon_sensitivity(
     rows: Sequence[Dict[str, str]],
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
+    rows = epsilon_filtered_rows(rows)
     epsilon_values = sorted({as_float(row, "epsilon") for row in rows})
     if len(epsilon_values) <= 1:
         return
@@ -696,16 +686,17 @@ def plot_epsilon_sensitivity(
     lines = ratio_line + runtime_line + k_line
     ax_left.legend(lines, [line.get_label() for line in lines], frameon=False)
     ax_left.set_title("Epsilon Sensitivity")
-    save_figure(fig, output_dir, "epsilon_sensitivity", formats)
+    save_figure(fig, output_dir, "epsilon_sensitivity")
 
 
 def plot_epsilon_sensitivity_by_graph(
     rows: Sequence[Dict[str, str]],
     output_dir: Path,
-    formats: Sequence[str],
 ) -> None:
     for graph_type in graph_families(rows):
-        graph_rows = [row for row in rows if row["graph_type"] == graph_type]
+        graph_rows = epsilon_filtered_rows(
+            [row for row in rows if row["graph_type"] == graph_type]
+        )
         epsilon_values = sorted({as_float(row, "epsilon") for row in graph_rows})
         if len(epsilon_values) <= 1:
             continue
@@ -764,36 +755,42 @@ def plot_epsilon_sensitivity_by_graph(
             fig,
             output_dir,
             f"epsilon_sensitivity_{graph_type}",
-            formats,
         )
 
 
-def generate_plots(input_path: Path, output_dir: Path, formats: Sequence[str]) -> None:
+def generate_full_plots(rows: Sequence[Dict[str, str]], output_dir: Path) -> None:
+    for graph_type in graph_families(rows):
+        plot_approximation_by_graph(rows, graph_type, output_dir)
+        plot_runtime_by_graph(rows, graph_type, output_dir)
+        plot_approximation_by_density(rows, graph_type, output_dir)
+        plot_modern_decomposition(rows, graph_type, output_dir)
+        plot_case_selection_heatmap(rows, graph_type, output_dir)
+        plot_runtime_breakdown(rows, graph_type, output_dir)
+
+    plot_error_distribution(rows, output_dir)
+    plot_estimate_error_vs_opt(rows, output_dir)
+    plot_epsilon_sensitivity(rows, output_dir)
+    plot_epsilon_sensitivity_by_graph(rows, output_dir)
+
+
+def generate_epsilon_only_plots(rows: Sequence[Dict[str, str]], output_dir: Path) -> None:
+    plot_epsilon_sensitivity(rows, output_dir)
+    plot_epsilon_sensitivity_by_graph(rows, output_dir)
+
+
+def generate_plots(input_path: Path, output_dir: Path, mode: str) -> None:
     rows = read_rows(input_path)
     if not rows:
         raise ValueError(f"no benchmark rows found in {input_path}")
 
-    for graph_type in graph_families(rows):
-        plot_approximation_by_graph(rows, graph_type, output_dir, formats)
-        plot_runtime_by_graph(rows, graph_type, output_dir, formats)
-        plot_approximation_by_density(rows, graph_type, output_dir, formats)
-        plot_modern_decomposition(rows, graph_type, output_dir, formats)
-        plot_case_selection_heatmap(rows, graph_type, output_dir, formats)
-        plot_runtime_breakdown(rows, graph_type, output_dir, formats)
-
-    plot_error_distribution(rows, output_dir, formats)
-    plot_estimate_error_vs_opt(rows, output_dir, formats)
-    plot_epsilon_sensitivity(rows, output_dir, formats)
-    plot_epsilon_sensitivity_by_graph(rows, output_dir, formats)
+    if mode == "full":
+        generate_full_plots(rows, output_dir)
+    elif mode == "epsilon-only":
+        generate_epsilon_only_plots(rows, output_dir)
+    else:
+        raise ValueError(f"unknown plot mode: {mode}")
 
     print(f"wrote plots to {output_dir}")
-
-
-def parse_formats(raw: str) -> List[str]:
-    formats = [item.strip().lower() for item in raw.split(",") if item.strip()]
-    if not formats:
-        raise ValueError("at least one output format is required")
-    return formats
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -811,9 +808,10 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Directory for generated figures. Default: {DEFAULT_OUTPUT_DIR}",
     )
     parser.add_argument(
-        "--formats",
-        default="png,svg",
-        help="Comma-separated output formats. Default: png,svg",
+        "--mode",
+        choices=["full", "epsilon-only"],
+        default="full",
+        help="Plot set to generate. Use 'epsilon-only' for Tier 2 epsilon sensitivity figures only.",
     )
     return parser
 
@@ -823,7 +821,7 @@ def main() -> None:
     generate_plots(
         input_path=Path(args.input),
         output_dir=Path(args.output_dir),
-        formats=parse_formats(args.formats),
+        mode=args.mode,
     )
 
 

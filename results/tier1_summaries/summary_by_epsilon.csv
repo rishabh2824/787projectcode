@@ -1,0 +1,4 @@
+graph_family,epsilon,derived_or_effective_k,num_trials,mean_modern_ratio,mean_modern_runtime,mean_copied_vertex_count,modern_selected_case1_pct,modern_selected_case2_pct
+er,0.3,16,500,0.9195072487431362,0.4991694824000006,3726.996,100.0,0.0
+powerlaw,0.3,16,500,0.785285441087965,4.099561718600046,20684.704,73.8,26.2
+sqrtreg,0.3,16,100,0.95555,0.8097633700005826,853.32,100.0,0.0
